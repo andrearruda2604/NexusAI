@@ -128,7 +128,7 @@ async def upload_document(
         storage_response = supabase.storage.from_("nexus-documents").upload(
             path=storage_path,
             file=content,
-            file_options={"content-type": file.content_type}
+            file_options={"content-type": file.content_type, "upsert": "true"}
         )
         logger.info(f"✅ Upload para storage concluído: {storage_response}")
         
