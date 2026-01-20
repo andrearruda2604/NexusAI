@@ -53,6 +53,10 @@ async def upload_document(
 ):
     """Upload de documento para processamento"""
     import json
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.info(f"📤 Upload iniciado: {file.filename}")
     
     # Validar tipo de arquivo
     allowed_types = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/csv']
@@ -61,6 +65,7 @@ async def upload_document(
     file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
     
     if file.content_type not in allowed_types and file_ext not in allowed_extensions:
+        logger.error(f"❌ Tipo não suportado: {file.content_type}, ext: {file_ext}")
         raise HTTPException(
             status_code=400, 
             detail=f"Tipo de arquivo não suportado. Use: TXT, PDF, DOCX ou CSV"
@@ -71,7 +76,10 @@ async def upload_document(
     file_size = len(content)
     max_size = 50 * 1024 * 1024  # 50MB
     
+    logger.info(f"📊 Tamanho do arquivo: {file_size} bytes")
+    
     if file_size > max_size:
+        logger.error(f"❌ Arquivo muito grande: {file_size} bytes")
         raise HTTPException(
             status_code=400,
             detail=f"Arquivo muito grande. Tamanho máximo: 50MB"
@@ -95,47 +103,62 @@ async def upload_document(
         storage_path += "knowledge-base/"
     storage_path += file.filename
     
+    logger.info(f"📁 Storage path: {storage_path}")
+    
     # Upload para Supabase Storage
     try:
+        logger.info("☁️ Iniciando upload para Supabase Storage...")
         storage_response = supabase.storage.from_("nexus-documents").upload(
             path=storage_path,
             file=content,
             file_options={"content-type": file.content_type}
         )
+        logger.info(f"✅ Upload para storage concluído: {storage_response}")
         
         # Obter URL pública (ou assinada se privado)
         file_url = supabase.storage.from_("nexus-documents").get_public_url(storage_path)
+        logger.info(f"🔗 URL do arquivo: {file_url}")
         
     except Exception as e:
+        logger.error(f"❌ Erro no upload para storage: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao fazer upload para storage: {str(e)}"
         )
     
     # Criar registro inicial
-    result = supabase.table("documents").insert({
-        "organization_id": organization_id,
-        "conversation_id": conversation_id,
-        "filename": file.filename,
-        "file_type": file.content_type,
-        "file_size_bytes": file_size,
-        "file_url": file_url,
-        "storage_path": storage_path,
-        "business_rule_ids": rule_ids,
-        "access_level": access_level,
-        "status": "processing"
-    }).execute()
-    
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Erro ao criar documento")
-    
-    document_id = result.data[0]["id"]
+    try:
+        logger.info("💾 Criando registro no banco de dados...")
+        result = supabase.table("documents").insert({
+            "organization_id": organization_id,
+            "conversation_id": conversation_id,
+            "filename": file.filename,
+            "file_type": file.content_type,
+            "file_size_bytes": file_size,
+            "file_url": file_url,
+            "storage_path": storage_path,
+            "business_rule_ids": rule_ids,
+            "access_level": access_level,
+            "status": "processing"
+        }).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Erro ao criar documento")
+        
+        document_id = result.data[0]["id"]
+        logger.info(f"✅ Documento criado: {document_id}")
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar registro: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao criar documento: {str(e)}")
     
     # Processar documento em background (simplificado)
-    # Em produção, use Celery ou similar
     try:
+        logger.info(f"🔄 Processando documento {document_id}...")
         await processor.process_document(document_id, content, file.filename)
+        logger.info(f"✅ Documento processado com sucesso: {document_id}")
     except Exception as e:
+        logger.error(f"❌ Erro ao processar documento: {str(e)}", exc_info=True)
         supabase.table("documents").update({
             "status": "error",
             "error_message": str(e)
