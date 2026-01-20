@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: "Plataforma de atendimento ao cliente com IA Generativa e Motor de Regras",
 };
 
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +22,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${inter.variable} antialiased`}>
-        {children}
+        <WebSocketProvider>
+          {children}
+        </WebSocketProvider>
       </body>
     </html>
   );

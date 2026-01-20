@@ -1,10 +1,10 @@
 "use client";
 
-import { Ban, UserCheck, ArrowRightLeft, Tag, Bell } from "lucide-react";
+import { Ban, UserCheck, ArrowRightLeft, Tag, Bell, MessageSquare } from "lucide-react";
 import { ReactNode } from "react";
 
 interface ActionNodeProps {
-    type: "block" | "prioritize" | "transfer" | "tag" | "notify";
+    type: "block" | "prioritize" | "transfer" | "tag" | "notify" | "auto_response";
     title: string;
     description: string;
 }
@@ -15,6 +15,7 @@ const actionIcons: Record<ActionNodeProps["type"], ReactNode> = {
     transfer: <ArrowRightLeft className="w-6 h-6" />,
     tag: <Tag className="w-6 h-6" />,
     notify: <Bell className="w-6 h-6" />,
+    auto_response: <MessageSquare className="w-6 h-6" />,
 };
 
 const actionColors: Record<ActionNodeProps["type"], { bg: string; icon: string; border: string }> = {
@@ -23,6 +24,7 @@ const actionColors: Record<ActionNodeProps["type"], { bg: string; icon: string; 
     transfer: { bg: "bg-purple-50", icon: "text-purple-500", border: "border-purple-200" },
     tag: { bg: "bg-green-50", icon: "text-green-500", border: "border-green-200" },
     notify: { bg: "bg-orange-50", icon: "text-orange-500", border: "border-orange-200" },
+    auto_response: { bg: "bg-cyan-50", icon: "text-cyan-500", border: "border-cyan-200" },
 };
 
 export default function ActionNode({ type, title, description }: ActionNodeProps) {

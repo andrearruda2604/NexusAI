@@ -61,6 +61,21 @@ async def get_conversation(conversation_id: str):
     return result.data
 
 
+@router.get("/conversations")
+async def list_conversations(organization_id: str, status: Optional[str] = None):
+    """Listar todas as conversas de uma organização"""
+    supabase = get_supabase()
+    
+    query = supabase.table("conversations").select("*").eq("organization_id", organization_id)
+    
+    if status:
+        query = query.eq("status", status)
+        
+    result = query.order("updated_at", desc=True).execute()
+    
+    return result.data
+
+
 @router.get("/conversations/{conversation_id}/messages")
 async def get_messages(conversation_id: str):
     """Listar mensagens de uma conversa"""
@@ -74,6 +89,7 @@ async def get_messages(conversation_id: str):
 @router.post("/conversations/{conversation_id}/messages")
 async def send_message(conversation_id: str, data: MessageRequest):
     """Enviar mensagem e obter resposta da IA"""
+    from app.services.websocket_manager import manager
     supabase = get_supabase()
     
     # Salvar mensagem do cliente
@@ -82,6 +98,14 @@ async def send_message(conversation_id: str, data: MessageRequest):
         "content": data.content,
         "sender": data.sender
     }).execute()
+    
+    # Broadcast Client Message
+    if client_msg.data:
+        await manager.broadcast({
+            "type": "new_message",
+            "conversation_id": conversation_id,
+            "message": client_msg.data[0]
+        })
     
     if data.sender == "client":
         # Buscar conversa para contexto
@@ -104,6 +128,14 @@ async def send_message(conversation_id: str, data: MessageRequest):
                 "content": ai_response,
                 "sender": "ai"
             }).execute()
+
+            # Broadcast AI Message
+            if ai_msg.data:
+                await manager.broadcast({
+                    "type": "new_message",
+                    "conversation_id": conversation_id,
+                    "message": ai_msg.data[0]
+                })
             
             return {"client_message": client_msg.data[0], "ai_response": ai_msg.data[0]}
     

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar, Header } from "@/components/layout";
 import {
     Upload,
@@ -12,52 +12,11 @@ import {
     Trash2,
     RefreshCw,
 } from "lucide-react";
+import { api } from "@/services/api";
 
-interface Document {
-    id: string;
-    name: string;
-    type: "pdf" | "docx" | "csv" | "url";
-    status: "processing" | "ready" | "error";
-    fragments: number;
-    uploadedAt: string;
-}
+const DEMO_ORG_ID = "00000000-0000-0000-0000-000000000001";
 
-const mockDocuments: Document[] = [
-    {
-        id: "1",
-        name: "Manual do Produto v2.pdf",
-        type: "pdf",
-        status: "ready",
-        fragments: 342,
-        uploadedAt: "há 2 dias",
-    },
-    {
-        id: "2",
-        name: "FAQ Atendimento.docx",
-        type: "docx",
-        status: "ready",
-        fragments: 128,
-        uploadedAt: "há 5 dias",
-    },
-    {
-        id: "3",
-        name: "https://empresa.com/suporte",
-        type: "url",
-        status: "processing",
-        fragments: 0,
-        uploadedAt: "Agora",
-    },
-    {
-        id: "4",
-        name: "Preços e Planos.csv",
-        type: "csv",
-        status: "error",
-        fragments: 0,
-        uploadedAt: "há 1 hora",
-    },
-];
-
-const statusConfig = {
+const statusConfig: any = {
     processing: {
         icon: <Loader2 className="w-4 h-4 animate-spin" />,
         text: "Processando",
@@ -78,10 +37,53 @@ const statusConfig = {
 export default function BaseConhecimento() {
     const [url, setUrl] = useState("");
     const [dragActive, setDragActive] = useState(false);
+    const [documents, setDocuments] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isUploading, setIsUploading] = useState(false);
 
-    const totalFragments = mockDocuments
+    useEffect(() => {
+        loadDocuments();
+    }, []);
+
+    const loadDocuments = async () => {
+        try {
+            const data = await api.documents.list(DEMO_ORG_ID);
+            setDocuments(data || []);
+        } catch (error) {
+            console.error("Error loading documents:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleFileUpload = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        setIsUploading(true);
+        const file = files[0]; // Simple single file upload for now
+
+        try {
+            await api.documents.upload(DEMO_ORG_ID, file);
+            await loadDocuments(); // Refresh list
+        } catch (error) {
+            console.error("Error uploading document:", error);
+            alert("Erro ao fazer upload do arquivo.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleUrlCrawl = async () => {
+        if (!url) return;
+        // Check if api supports crawl, if not fallback or implement
+        // Assuming api.documents.crawl exists or we need to add it.
+        // For now, let's just log or alert if not implemented in api.ts
+        alert("Crawler será implementado em breve na API Client.");
+    };
+
+    const totalFragments = documents
         .filter((d) => d.status === "ready")
-        .reduce((sum, d) => sum + d.fragments, 0);
+        .reduce((sum, d) => sum + (d.fragments || 0), 0);
     const maxFragments = 10000;
     const progress = (totalFragments / maxFragments) * 100;
 
@@ -96,7 +98,7 @@ export default function BaseConhecimento() {
                         <div className="card p-6">
                             <p className="text-sm text-slate-500 mb-1">Documentos Indexados</p>
                             <p className="text-2xl font-bold text-slate-900">
-                                {mockDocuments.filter((d) => d.status === "ready").length}
+                                {documents.filter((d) => d.status === "ready").length}
                             </p>
                         </div>
                         <div className="card p-6">
@@ -126,15 +128,19 @@ export default function BaseConhecimento() {
                             <div className="card-body">
                                 <div
                                     className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${dragActive
-                                            ? "border-blue-500 bg-blue-50"
-                                            : "border-slate-300 hover:border-blue-400"
+                                        ? "border-blue-500 bg-blue-50"
+                                        : "border-slate-300 hover:border-blue-400"
                                         }`}
                                     onDragOver={(e) => {
                                         e.preventDefault();
                                         setDragActive(true);
                                     }}
                                     onDragLeave={() => setDragActive(false)}
-                                    onDrop={() => setDragActive(false)}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        setDragActive(false);
+                                        handleFileUpload(e.dataTransfer.files);
+                                    }}
                                 >
                                     <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
                                     <p className="font-medium text-slate-700 mb-1">
@@ -143,7 +149,19 @@ export default function BaseConhecimento() {
                                     <p className="text-sm text-slate-500 mb-4">
                                         ou clique para selecionar
                                     </p>
-                                    <button className="btn btn-primary">Selecionar Arquivos</button>
+                                    <input
+                                        type="file"
+                                        id="fileInput"
+                                        className="hidden"
+                                        onChange={(e) => handleFileUpload(e.target.files)}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => document.getElementById("fileInput")?.click()}
+                                        disabled={isUploading}
+                                    >
+                                        {isUploading ? "Enviando..." : "Selecionar Arquivos"}
+                                    </button>
                                     <p className="text-xs text-slate-400 mt-4">
                                         PDF, DOCX, TXT, CSV • Máximo 50MB por arquivo
                                     </p>
@@ -172,7 +190,7 @@ export default function BaseConhecimento() {
                                         onChange={(e) => setUrl(e.target.value)}
                                         className="input flex-1"
                                     />
-                                    <button className="btn btn-primary">Escanear</button>
+                                    <button className="btn btn-primary" onClick={handleUrlCrawl}>Escanear</button>
                                 </div>
                             </div>
                         </div>
@@ -182,8 +200,8 @@ export default function BaseConhecimento() {
                     <div className="card">
                         <div className="card-header flex items-center justify-between">
                             <span>Documentos Indexados</span>
-                            <button className="btn btn-ghost text-sm">
-                                <RefreshCw className="w-4 h-4" />
+                            <button className="btn btn-ghost text-sm" onClick={loadDocuments}>
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
                                 Atualizar
                             </button>
                         </div>
@@ -200,41 +218,51 @@ export default function BaseConhecimento() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {mockDocuments.map((doc) => {
-                                        const status = statusConfig[doc.status];
-                                        return (
-                                            <tr key={doc.id}>
-                                                <td>
-                                                    <div className="flex items-center gap-3">
-                                                        <FileText className="w-5 h-5 text-slate-400" />
-                                                        <span className="font-medium">{doc.name}</span>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className="text-sm text-slate-500 uppercase">
-                                                        {doc.type}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span
-                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${status.class}`}
-                                                    >
-                                                        {status.icon}
-                                                        {status.text}
-                                                    </span>
-                                                </td>
-                                                <td className="text-slate-600">
-                                                    {doc.fragments > 0 ? doc.fragments.toLocaleString() : "-"}
-                                                </td>
-                                                <td className="text-slate-500 text-sm">{doc.uploadedAt}</td>
-                                                <td>
-                                                    <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    {documents.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="text-center py-8 text-slate-500">
+                                                Nenhum documento indexado.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        documents.map((doc) => {
+                                            const status = statusConfig[doc.status] || statusConfig.processing;
+                                            return (
+                                                <tr key={doc.id}>
+                                                    <td>
+                                                        <div className="flex items-center gap-3">
+                                                            <FileText className="w-5 h-5 text-slate-400" />
+                                                            <span className="font-medium">{doc.filename || doc.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className="text-sm text-slate-500 uppercase">
+                                                            {doc.file_type?.split("/")[1] || "DOC"}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${status.class}`}
+                                                        >
+                                                            {status.icon}
+                                                            {status.text}
+                                                        </span>
+                                                    </td>
+                                                    <td className="text-slate-600">
+                                                        {doc.fragments > 0 ? doc.fragments.toLocaleString() : "-"}
+                                                    </td>
+                                                    <td className="text-slate-500 text-sm">
+                                                        {new Date(doc.created_at).toLocaleDateString()}
+                                                    </td>
+                                                    <td>
+                                                        <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
                                 </tbody>
                             </table>
                         </div>

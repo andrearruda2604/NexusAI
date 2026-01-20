@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import chat, rules, documents, integrations, webhooks
+from app.routers import chat, rules, documents, integrations, webhooks, dashboard
 
 app = FastAPI(
     title="Nexus AI API",
@@ -23,6 +23,7 @@ app.include_router(rules.router, prefix="/api/rules", tags=["Rules"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(integrations.router, prefix="/api/integrations", tags=["Integrations"])
 app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 
 
 @app.get("/")
@@ -33,3 +34,17 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+from fastapi import WebSocket, WebSocketDisconnect
+from app.services.websocket_manager import manager
+
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(websocket, client_id)
+    try:
+        while True:
+            await websocket.receive_text()
+            # Keep alive or handle incoming messages if needed
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, client_id)
+

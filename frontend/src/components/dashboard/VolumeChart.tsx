@@ -46,8 +46,12 @@ const dataByPeriod: Record<Period, typeof weeklyData> = {
     Mês: monthlyData,
 };
 
-export default function VolumeChart() {
+export default function VolumeChart({ data }: { data?: any[] }) {
     const [period, setPeriod] = useState<Period>("Semana");
+
+    // Use passed data if available (assuming it matches the structure), otherwise fallback to static for now or empty
+    // For simplicity in this iteration, we map the backend "daily_volume" to "Semana"
+    const chartData = data || weeklyData;
 
     return (
         <div className="card animate-fade-in">
@@ -55,7 +59,7 @@ export default function VolumeChart() {
                 <div>
                     <h3 className="font-semibold text-slate-900">Volume de Mensagens</h3>
                     <p className="text-sm text-slate-500 mt-1">
-                        Análise diária de tráfego de entrada em tempo real
+                        Análise de tráfego de entrada em tempo real
                     </p>
                 </div>
                 <div className="flex bg-slate-100 rounded-lg p-1">
@@ -64,8 +68,8 @@ export default function VolumeChart() {
                             key={p}
                             onClick={() => setPeriod(p)}
                             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${period === p
-                                    ? "bg-blue-500 text-white shadow-sm"
-                                    : "text-slate-600 hover:text-slate-900"
+                                ? "bg-blue-500 text-white shadow-sm"
+                                : "text-slate-600 hover:text-slate-900"
                                 }`}
                         >
                             {p}
@@ -75,7 +79,7 @@ export default function VolumeChart() {
             </div>
             <div className="p-6 pt-4">
                 <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={dataByPeriod[period]}>
+                    <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
