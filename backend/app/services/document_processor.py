@@ -214,15 +214,41 @@ class DocumentProcessor:
         return chunks
     
     async def _generate_embedding(self, text: str) -> List[float]:
-        """Gerar embedding usando Gemini"""
+        """Gerar embedding usando Gemini com retry e rate limiting"""
+        import asyncio
+        import logging
+        from google.api_core import exceptions
         
-        result = genai.embed_content(
-            model="models/embedding-001",
-            content=text,
-            task_type="retrieval_document"
-        )
+        logger = logging.getLogger(__name__)
         
-        return result['embedding']
+        # Retry mechanism
+        max_retries = 5
+        base_delay = 2  # segundos
+        
+        for attempt in range(max_retries):
+            try:
+                result = genai.embed_content(
+                    model="models/embedding-001",
+                    content=text,
+                    task_type="retrieval_document"
+                )
+                return result['embedding']
+                
+            except exceptions.ResourceExhausted as e:
+                # Quota excedida (429)
+                delay = base_delay * (2 ** attempt)  # Exponential backoff: 2, 4, 8, 16...
+                if delay > 60: delay = 60
+                
+                logger.warning(f"⚠️ Quota do Gemini excedida. Aguardando {delay}s antes de tentar novamente (Tentativa {attempt+1}/{max_retries})")
+                await asyncio.sleep(delay)
+                
+            except Exception as e:
+                logger.error(f"❌ Erro ao gerar embedding: {str(e)}")
+                if attempt == max_retries - 1:
+                    raise e
+                await asyncio.sleep(1)
+        
+        raise Exception("Falha ao gerar embedding após várias tentativas")
     
     async def _get_doc_org(self, document_id: str) -> str:
         """Buscar organization_id do documento"""
