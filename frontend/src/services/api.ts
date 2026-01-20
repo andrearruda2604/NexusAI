@@ -2,6 +2,10 @@ import { supabase } from "@/lib/supabase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api";
 
+// Debug: Log API URL being used
+console.log("🔍 API_URL configurada:", API_URL);
+console.log("🔍 NEXT_PUBLIC_API_URL:", process.env.NEXT_PUBLIC_API_URL);
+
 export const api = {
     chat: {
         list: async (organizationId: string, status?: string) => {
@@ -131,6 +135,9 @@ export const api = {
         list: async (organizationId: string) => {
             const url = new URL(`${API_URL}/documents/`);
             url.searchParams.append("organization_id", organizationId);
+
+            console.log("🔍 Fetching documents from:", url.toString());
+
             const response = await fetch(url.toString());
             if (!response.ok) throw new Error("Failed to list documents");
             return response.json();
