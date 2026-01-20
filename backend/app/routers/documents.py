@@ -95,6 +95,23 @@ async def upload_document(
         storage_path += "knowledge-base/"
     storage_path += file.filename
     
+    # Upload para Supabase Storage
+    try:
+        storage_response = supabase.storage.from_("nexus-documents").upload(
+            path=storage_path,
+            file=content,
+            file_options={"content-type": file.content_type}
+        )
+        
+        # Obter URL pública (ou assinada se privado)
+        file_url = supabase.storage.from_("nexus-documents").get_public_url(storage_path)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao fazer upload para storage: {str(e)}"
+        )
+    
     # Criar registro inicial
     result = supabase.table("documents").insert({
         "organization_id": organization_id,
@@ -102,6 +119,7 @@ async def upload_document(
         "filename": file.filename,
         "file_type": file.content_type,
         "file_size_bytes": file_size,
+        "file_url": file_url,
         "storage_path": storage_path,
         "business_rule_ids": rule_ids,
         "access_level": access_level,
