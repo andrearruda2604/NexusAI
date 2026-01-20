@@ -95,16 +95,37 @@ export const api = {
         }
     },
     documents: {
-        upload: async (organizationId: string, file: File) => {
+        upload: async (
+            organizationId: string,
+            file: File,
+            options?: {
+                conversationId?: string;
+                businessRuleIds?: string[];
+                accessLevel?: 'private' | 'shared' | 'organization' | 'public';
+            }
+        ) => {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("organization_id", organizationId);
+
+            if (options?.conversationId) {
+                formData.append("conversation_id", options.conversationId);
+            }
+            if (options?.businessRuleIds && options.businessRuleIds.length > 0) {
+                formData.append("business_rule_ids", JSON.stringify(options.businessRuleIds));
+            }
+            if (options?.accessLevel) {
+                formData.append("access_level", options.accessLevel);
+            }
 
             const response = await fetch(`${API_URL}/documents/upload`, {
                 method: "POST",
                 body: formData
             });
-            if (!response.ok) throw new Error("Failed to upload document");
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || "Failed to upload document");
+            }
             return response.json();
         },
         list: async (organizationId: string) => {
@@ -112,6 +133,13 @@ export const api = {
             url.searchParams.append("organization_id", organizationId);
             const response = await fetch(url.toString());
             if (!response.ok) throw new Error("Failed to list documents");
+            return response.json();
+        },
+        delete: async (documentId: string) => {
+            const response = await fetch(`${API_URL}/documents/${documentId}`, {
+                method: "DELETE"
+            });
+            if (!response.ok) throw new Error("Failed to delete document");
             return response.json();
         },
     },

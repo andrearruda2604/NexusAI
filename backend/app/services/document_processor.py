@@ -111,45 +111,84 @@ class DocumentProcessor:
         
         filename_lower = filename.lower()
         
-        if filename_lower.endswith('.txt'):
-            return content.decode('utf-8')
-        
-        elif filename_lower.endswith('.csv'):
-            return content.decode('utf-8')
-        
-        elif filename_lower.endswith('.pdf'):
-            # Simplificado - em produção use PyPDF2 ou pdfplumber
-            try:
-                import io
-                # Placeholder - precisa de lib PDF
+        try:
+            if filename_lower.endswith('.txt'):
+                return content.decode('utf-8')
+            
+            elif filename_lower.endswith('.csv'):
+                return content.decode('utf-8')
+            
+            elif filename_lower.endswith('.pdf'):
+                # Usar PyPDF2 para extrair texto de PDF
+                try:
+                    from PyPDF2 import PdfReader
+                    import io
+                    
+                    pdf_file = io.BytesIO(content)
+                    pdf_reader = PdfReader(pdf_file)
+                    
+                    text_parts = []
+                    for page in pdf_reader.pages:
+                        text_parts.append(page.extract_text())
+                    
+                    return '\n'.join(text_parts)
+                except Exception as e:
+                    raise ValueError(f"Erro ao processar PDF: {str(e)}")
+            
+            elif filename_lower.endswith('.docx'):
+                # Usar python-docx para extrair texto de DOCX
+                try:
+                    from docx import Document
+                    import io
+                    
+                    docx_file = io.BytesIO(content)
+                    doc = Document(docx_file)
+                    
+                    text_parts = []
+                    for paragraph in doc.paragraphs:
+                        text_parts.append(paragraph.text)
+                    
+                    return '\n'.join(text_parts)
+                except Exception as e:
+                    raise ValueError(f"Erro ao processar DOCX: {str(e)}")
+            
+            else:
+                # Tentar decodificar como texto simples
                 return content.decode('utf-8', errors='ignore')
-            except:
-                return ""
-        
-        elif filename_lower.endswith('.docx'):
-            # Simplificado - em produção use python-docx
-            try:
-                return content.decode('utf-8', errors='ignore')
-            except:
-                return ""
-        
-        return content.decode('utf-8', errors='ignore')
+                
+        except UnicodeDecodeError:
+            raise ValueError(f"Não foi possível decodificar o arquivo {filename}")
+        except Exception as e:
+            raise ValueError(f"Erro ao processar arquivo {filename}: {str(e)}")
     
     def _extract_text_from_html(self, html: str) -> str:
-        """Extrair texto de HTML (simplificado)"""
-        import re
-        
-        # Remover scripts e styles
-        html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-        html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
-        
-        # Remover tags HTML
-        text = re.sub(r'<[^>]+>', ' ', html)
-        
-        # Limpar espaços extras
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        return text
+        """Extrair texto de HTML usando BeautifulSoup"""
+        try:
+            from bs4 import BeautifulSoup
+            
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            # Remover scripts e styles
+            for script in soup(["script", "style"]):
+                script.decompose()
+            
+            # Extrair texto
+            text = soup.get_text()
+            
+            # Limpar espaços extras
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+            
+            return text
+        except Exception as e:
+            # Fallback para regex se BeautifulSoup falhar
+            import re
+            html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+            html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', ' ', html)
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text
     
     def _split_text(self, text: str) -> List[str]:
         """Dividir texto em chunks"""

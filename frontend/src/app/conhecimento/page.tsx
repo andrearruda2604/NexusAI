@@ -59,15 +59,36 @@ export default function BaseConhecimento() {
     const handleFileUpload = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
 
+        const file = files[0];
+
+        // Validação de tipo
+        const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/csv'];
+        const allowedExtensions = ['.txt', '.pdf', '.docx', '.csv'];
+        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+
+        if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
+            alert('Tipo de arquivo não suportado. Use: TXT, PDF, DOCX ou CSV');
+            return;
+        }
+
+        // Validação de tamanho (50MB)
+        const maxSize = 50 * 1024 * 1024;
+        if (file.size > maxSize) {
+            alert('Arquivo muito grande. Tamanho máximo: 50MB');
+            return;
+        }
+
         setIsUploading(true);
-        const file = files[0]; // Simple single file upload for now
 
         try {
-            await api.documents.upload(DEMO_ORG_ID, file);
+            await api.documents.upload(DEMO_ORG_ID, file, {
+                accessLevel: 'organization'
+            });
             await loadDocuments(); // Refresh list
-        } catch (error) {
+            alert('Documento enviado com sucesso!');
+        } catch (error: any) {
             console.error("Error uploading document:", error);
-            alert("Erro ao fazer upload do arquivo.");
+            alert(error.message || "Erro ao fazer upload do arquivo.");
         } finally {
             setIsUploading(false);
         }
@@ -75,10 +96,50 @@ export default function BaseConhecimento() {
 
     const handleUrlCrawl = async () => {
         if (!url) return;
-        // Check if api supports crawl, if not fallback or implement
-        // Assuming api.documents.crawl exists or we need to add it.
-        // For now, let's just log or alert if not implemented in api.ts
-        alert("Crawler será implementado em breve na API Client.");
+
+        // Validar URL
+        try {
+            new URL(url);
+        } catch {
+            alert('URL inválida. Use o formato: https://exemplo.com');
+            return;
+        }
+
+        setIsUploading(true);
+
+        try {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/documents/crawl`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    organization_id: DEMO_ORG_ID,
+                    url: url
+                })
+            });
+
+            setUrl('');
+            await loadDocuments();
+            alert('URL enviada para processamento!');
+        } catch (error) {
+            console.error("Error crawling URL:", error);
+            alert("Erro ao processar URL.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDeleteDocument = async (documentId: string) => {
+        if (!confirm('Tem certeza que deseja excluir este documento?')) {
+            return;
+        }
+
+        try {
+            await api.documents.delete(documentId);
+            await loadDocuments();
+        } catch (error) {
+            console.error("Error deleting document:", error);
+            alert("Erro ao excluir documento.");
+        }
     };
 
     const totalFragments = documents
@@ -255,7 +316,10 @@ export default function BaseConhecimento() {
                                                         {new Date(doc.created_at).toLocaleDateString()}
                                                     </td>
                                                     <td>
-                                                        <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                                        <button
+                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            onClick={() => handleDeleteDocument(doc.id)}
+                                                        >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </td>
