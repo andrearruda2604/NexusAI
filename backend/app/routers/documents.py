@@ -95,13 +95,30 @@ async def upload_document(
         except:
             pass
     
+    # Sanitizar nome do arquivo (remover caracteres especiais)
+    import re
+    import unicodedata
+    
+    # Normalizar unicode e remover acentos
+    filename_normalized = unicodedata.normalize('NFKD', file.filename)
+    filename_ascii = filename_normalized.encode('ASCII', 'ignore').decode('ASCII')
+    
+    # Remover caracteres não permitidos (manter apenas letras, números, pontos, hífens e underscores)
+    filename_safe = re.sub(r'[^a-zA-Z0-9._-]', '_', filename_ascii)
+    
+    # Remover múltiplos underscores consecutivos
+    filename_safe = re.sub(r'_+', '_', filename_safe)
+    
+    logger.info(f"📝 Nome original: {file.filename}")
+    logger.info(f"📝 Nome sanitizado: {filename_safe}")
+    
     # Criar storage path
     storage_path = f"org-{organization_id}/"
     if conversation_id:
         storage_path += f"conversation-{conversation_id}/"
     else:
         storage_path += "knowledge-base/"
-    storage_path += file.filename
+    storage_path += filename_safe
     
     logger.info(f"📁 Storage path: {storage_path}")
     
