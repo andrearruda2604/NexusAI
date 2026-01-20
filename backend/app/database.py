@@ -3,7 +3,11 @@ from app.config import get_settings
 
 settings = get_settings()
 
-supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
+# Criar cliente Supabase
+supabase: Client = create_client(
+    supabase_url=settings.supabase_url,
+    supabase_key=settings.supabase_service_key
+)
 
 
 def get_supabase() -> Client:
