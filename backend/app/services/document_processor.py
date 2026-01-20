@@ -30,18 +30,31 @@ class DocumentProcessor:
         chunks = self._split_text(text)
         
         # Gerar embeddings e salvar
+        import asyncio
+        import logging
+        logger = logging.getLogger(__name__)
+
         for i, chunk in enumerate(chunks):
-            embedding = await self._generate_embedding(chunk)
-            
-            supabase.table("documents").insert({
-                "organization_id": (await self._get_doc_org(document_id)),
-                "filename": f"{filename} [Parte {i+1}]",
-                "content": chunk,
-                "embedding": embedding,
-                "chunk_index": i,
-                "parent_document_id": document_id,
-                "status": "ready"
-            }).execute()
+            # Adicionar delay entre chunks para evitar rate limiting
+            if i > 0:
+                await asyncio.sleep(2)  # 2 segundos de pausa entre cada chunk
+                
+            try:
+                embedding = await self._generate_embedding(chunk)
+                
+                supabase.table("documents").insert({
+                    "organization_id": (await self._get_doc_org(document_id)),
+                    "filename": f"{filename} [Parte {i+1}]",
+                    "content": chunk,
+                    "embedding": embedding,
+                    "chunk_index": i,
+                    "parent_document_id": document_id,
+                    "status": "ready"
+                }).execute()
+            except Exception as e:
+                logger.error(f"❌ Falha no chunk {i}: {str(e)}")
+                # Opcional: continuar com outros chunks ou falhar tudo
+                continue
         
         # Atualizar documento principal
         supabase.table("documents").update({
