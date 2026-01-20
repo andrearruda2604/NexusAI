@@ -13,9 +13,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://nexus-ai.vercel.app",
-        "https://*.vercel.app"  # Permite todos os deployments do Vercel
+        "https://nexus-ai.vercel.app"
     ],
+    allow_origin_regex="https://.*\.vercel\.app",  # Regex para permitir subdomínios Vercel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
