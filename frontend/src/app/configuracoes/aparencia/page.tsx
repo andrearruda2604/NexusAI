@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar, Header } from "@/components/layout";
 import { ArrowLeft, Palette, Save, Loader2, CheckCircle, Sun, Moon, Monitor } from "lucide-react";
+import { applyTheme } from "@/components/ThemeProvider";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8002/api";
 const DEMO_ORG_ID = "00000000-0000-0000-0000-000000000001";
@@ -39,6 +40,13 @@ export default function AparenciaPage() {
         }
     };
 
+    const handleThemeSelect = (themeId: string) => {
+        setSelectedTheme(themeId);
+        // Preview the theme immediately
+        applyTheme(themeId);
+        localStorage.setItem("nexus-theme", themeId);
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         setSaved(false);
@@ -49,8 +57,9 @@ export default function AparenciaPage() {
                 body: JSON.stringify({ theme: selectedTheme }),
             });
 
-            // Apply theme locally
+            // Ensure theme is applied and saved
             localStorage.setItem("nexus-theme", selectedTheme);
+            applyTheme(selectedTheme);
 
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
@@ -95,22 +104,22 @@ export default function AparenciaPage() {
                                         {themes.map((theme) => (
                                             <button
                                                 key={theme.id}
-                                                onClick={() => setSelectedTheme(theme.id)}
+                                                onClick={() => handleThemeSelect(theme.id)}
                                                 className={`p-4 rounded-xl border-2 transition-all text-left ${selectedTheme === theme.id
-                                                        ? "border-blue-500 bg-blue-50"
-                                                        : "border-slate-200 hover:border-slate-300"
+                                                    ? "border-blue-500 bg-blue-50"
+                                                    : "border-slate-200 hover:border-slate-300"
                                                     }`}
                                             >
                                                 <div
                                                     className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${selectedTheme === theme.id
-                                                            ? "bg-blue-100"
-                                                            : "bg-slate-100"
+                                                        ? "bg-blue-100"
+                                                        : "bg-slate-100"
                                                         }`}
                                                 >
                                                     <theme.icon
                                                         className={`w-5 h-5 ${selectedTheme === theme.id
-                                                                ? "text-blue-600"
-                                                                : "text-slate-500"
+                                                            ? "text-blue-600"
+                                                            : "text-slate-500"
                                                             }`}
                                                     />
                                                 </div>
