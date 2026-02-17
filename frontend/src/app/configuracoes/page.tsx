@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar, Header } from "@/components/layout";
 import {
     User,
@@ -17,39 +19,41 @@ const settingsSections = [
     {
         title: "Conta",
         items: [
-            { name: "Perfil", description: "Nome, email e foto", icon: User },
-            { name: "Empresa", description: "Informações da organização", icon: Building },
+            { name: "Perfil", description: "Nome, email e foto", icon: User, path: "/configuracoes/perfil" },
+            { name: "Empresa", description: "Informações da organização", icon: Building, path: "/configuracoes/empresa" },
         ],
     },
     {
         title: "Preferências",
         items: [
-            { name: "Notificações", description: "Alertas e emails", icon: Bell },
-            { name: "Aparência", description: "Tema e exibição", icon: Palette },
-            { name: "Idioma e Região", description: "Localização e fuso horário", icon: Globe },
+            { name: "Notificações", description: "Alertas e emails", icon: Bell, path: "/configuracoes/notificacoes" },
+            { name: "Aparência", description: "Tema e exibição", icon: Palette, path: "/configuracoes/aparencia" },
+            { name: "Idioma e Região", description: "Localização e fuso horário", icon: Globe, path: "/configuracoes/idioma" },
         ],
     },
     {
         title: "Segurança",
         items: [
-            { name: "Segurança", description: "Senha e autenticação", icon: Shield },
+            { name: "Segurança", description: "Senha e autenticação", icon: Shield, path: "/configuracoes/seguranca" },
         ],
     },
     {
         title: "Faturamento",
         items: [
-            { name: "Plano e Pagamento", description: "Assinatura e faturas", icon: CreditCard },
+            { name: "Plano e Pagamento", description: "Assinatura e faturas", icon: CreditCard, path: "/configuracoes/plano" },
         ],
     },
     {
         title: "Suporte",
         items: [
-            { name: "Central de Ajuda", description: "Documentação e tutoriais", icon: HelpCircle },
+            { name: "Central de Ajuda", description: "Documentação e tutoriais", icon: HelpCircle, path: "/configuracoes/ajuda" },
         ],
     },
 ];
 
 export default function Configuracoes() {
+    const router = useRouter();
+
     return (
         <div className="min-h-screen bg-[#f8fafc]">
             <Sidebar />
@@ -66,6 +70,7 @@ export default function Configuracoes() {
                                     <button
                                         key={item.name}
                                         className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left"
+                                        onClick={() => router.push(item.path)}
                                     >
                                         <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
                                             <item.icon className="w-5 h-5 text-slate-600" />

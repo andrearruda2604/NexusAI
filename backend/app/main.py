@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import chat, rules, documents, integrations, webhooks, dashboard
+from app.routers import chat, rules, documents, integrations, webhooks, dashboard, settings
 
 app = FastAPI(
     title="Nexus AI API",
@@ -28,6 +28,7 @@ app.include_router(documents.router, prefix="/api/documents", tags=["Documents"]
 app.include_router(integrations.router, prefix="/api/integrations", tags=["Integrations"])
 app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 
 
 @app.get("/")
