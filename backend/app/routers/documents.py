@@ -25,9 +25,21 @@ async def list_documents(organization_id: str):
     """Listar documentos de uma organização"""
     supabase = get_supabase()
     
+    # Buscar documentos pai (sem parent_document_id)
     result = supabase.table("documents").select("*").eq("organization_id", organization_id).is_("parent_document_id", "null").order("created_at", desc=True).execute()
     
-    return result.data
+    documents = result.data or []
+    
+    # Para cada documento pai, contar os fragmentos (chunks filhos)
+    for doc in documents:
+        chunks = supabase.table("documents").select("id", count="exact").eq("parent_document_id", doc["id"]).execute()
+        doc["fragments"] = chunks.count if chunks.count else 0
+        
+        # Se metadata tem total_chunks, usar como fallback
+        if doc["fragments"] == 0 and doc.get("metadata") and doc["metadata"].get("total_chunks"):
+            doc["fragments"] = doc["metadata"]["total_chunks"]
+    
+    return documents
 
 
 @router.get("/{document_id}")
