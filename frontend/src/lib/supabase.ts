@@ -57,7 +57,7 @@ export interface Message {
     created_at: string;
 }
 
-export interface Blacklist {
+export interface Blocklist {
     id: string;
     organization_id: string;
     name: string;

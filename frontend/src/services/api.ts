@@ -98,6 +98,24 @@ export const api = {
             return response.json();
         }
     },
+    blocklists: {
+        list: async (organizationId: string) => {
+            const url = new URL(`${API_URL}/rules/blocklists/`);
+            url.searchParams.append("organization_id", organizationId);
+            const response = await fetch(url.toString());
+            if (!response.ok) throw new Error("Failed to fetch blocklists");
+            return response.json();
+        },
+        create: async (data: any) => {
+            const response = await fetch(`${API_URL}/rules/blocklists/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error("Failed to create blocklist");
+            return response.json();
+        },
+    },
     documents: {
         upload: async (
             organizationId: string,
