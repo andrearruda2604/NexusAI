@@ -9,7 +9,6 @@ import {
     Bell,
     Shield,
     Palette,
-    Globe,
     CreditCard,
     HelpCircle,
     ChevronRight,
@@ -28,7 +27,6 @@ const settingsSections = [
         items: [
             { name: "Notificações", description: "Alertas e emails", icon: Bell, path: "/configuracoes/notificacoes" },
             { name: "Aparência", description: "Tema e exibição", icon: Palette, path: "/configuracoes/aparencia" },
-            { name: "Idioma e Região", description: "Localização e fuso horário", icon: Globe, path: "/configuracoes/idioma" },
         ],
     },
     {
