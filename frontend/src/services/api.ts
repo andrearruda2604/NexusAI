@@ -50,6 +50,23 @@ export const api = {
             if (!response.ok) throw new Error("Failed to create conversation");
             return response.json();
         },
+
+        test: async (data: {
+            organization_id: string;
+            message: string;
+            client_phone?: string;
+            client_name?: string;
+            channel?: string;
+            conversation_id?: string;
+        }) => {
+            const response = await fetch(`${API_URL}/chat/test`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error("Failed to test message");
+            return response.json();
+        },
     },
 
     rules: {

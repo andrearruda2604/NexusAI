@@ -3,9 +3,21 @@ from pydantic import BaseModel
 from typing import Optional, List
 from app.database import get_supabase
 from app.services.ai_engine import AIEngine
+from app.services.rules_engine import RulesEngine
+import time as time_module
 
 router = APIRouter()
 ai_engine = AIEngine()
+rules_engine = RulesEngine()
+
+
+class TestMessageRequest(BaseModel):
+    organization_id: str
+    message: str
+    client_phone: str = "+5511999999999"
+    client_name: str = "Teste Admin"
+    channel: str = "sandbox"
+    conversation_id: Optional[str] = None
 
 
 class MessageRequest(BaseModel):
@@ -156,3 +168,83 @@ async def transfer_to_human(conversation_id: str):
         raise HTTPException(status_code=404, detail="Conversa não encontrada")
     
     return {"message": "Conversa transferida para atendente humano", "conversation": result.data[0]}
+
+
+@router.post("/test")
+async def test_message(data: TestMessageRequest):
+    """Sandbox: testar mensagem passando pelo pipeline completo (regras + IA)"""
+    start = time_module.time()
+    supabase = get_supabase()
+
+    try:
+        # 1. Reuse existing sandbox conversation or create one
+        conversation_id = data.conversation_id
+        if not conversation_id:
+            conv = supabase.table("conversations").insert({
+                "organization_id": data.organization_id,
+                "client_phone": data.client_phone,
+                "client_name": data.client_name,
+                "channel": "sandbox",
+                "status": "active",
+                "handled_by": "ai"
+            }).execute()
+            if conv.data:
+                conversation_id = conv.data[0]["id"]
+
+        # 2. Evaluate rules
+        rules_start = time_module.time()
+        rules_result = await rules_engine.evaluate(
+            data.organization_id, data.client_phone, data.message
+        )
+        rules_time = round((time_module.time() - rules_start) * 1000)
+
+        # 3. Save client message
+        client_msg = supabase.table("messages").insert({
+            "conversation_id": conversation_id,
+            "content": data.message,
+            "sender": "client"
+        }).execute()
+
+        # 4. Generate AI response
+        ai_start = time_module.time()
+        history = supabase.table("messages").select("*").eq(
+            "conversation_id", conversation_id
+        ).order("created_at").limit(20).execute()
+
+        ai_response = await ai_engine.generate_response(
+            organization_id=data.organization_id,
+            message=data.message,
+            conversation_history=history.data,
+            rules_context=rules_result.get("context", {})
+        )
+        ai_time = round((time_module.time() - ai_start) * 1000)
+
+        # 5. Save AI response
+        ai_msg = supabase.table("messages").insert({
+            "conversation_id": conversation_id,
+            "content": ai_response,
+            "sender": "ai"
+        }).execute()
+
+        total_time = round((time_module.time() - start) * 1000)
+
+        return {
+            "conversation_id": conversation_id,
+            "client_message": client_msg.data[0] if client_msg.data else None,
+            "ai_response": ai_msg.data[0] if ai_msg.data else None,
+            "rules_evaluation": {
+                "action": rules_result.get("action", "continue"),
+                "rule_name": rules_result.get("rule_name"),
+                "action_config": rules_result.get("action_config"),
+                "context": rules_result.get("context", {}),
+            },
+            "metadata": {
+                "rules_time_ms": rules_time,
+                "ai_time_ms": ai_time,
+                "total_time_ms": total_time,
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
+
