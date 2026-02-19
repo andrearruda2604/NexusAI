@@ -116,6 +116,52 @@ export const api = {
             return response.json();
         },
     },
+    workflows: {
+        list: async (organizationId: string) => {
+            const url = new URL(`${API_URL}/rules/workflows/`);
+            url.searchParams.append("organization_id", organizationId);
+            const response = await fetch(url.toString());
+            if (!response.ok) throw new Error("Failed to fetch workflows");
+            return response.json();
+        },
+        create: async (data: any) => {
+            const response = await fetch(`${API_URL}/rules/workflows/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error("Failed to create workflow");
+            return response.json();
+        },
+        get: async (id: string) => {
+            const response = await fetch(`${API_URL}/rules/workflows/${id}`);
+            if (!response.ok) throw new Error("Failed to fetch workflow");
+            return response.json();
+        },
+        update: async (id: string, data: any) => {
+            const response = await fetch(`${API_URL}/rules/workflows/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error("Failed to update workflow");
+            return response.json();
+        },
+        delete: async (id: string) => {
+            const response = await fetch(`${API_URL}/rules/workflows/${id}`, {
+                method: "DELETE",
+            });
+            if (!response.ok) throw new Error("Failed to delete workflow");
+            return response.json();
+        },
+        toggle: async (id: string) => {
+            const response = await fetch(`${API_URL}/rules/workflows/${id}/toggle`, {
+                method: "POST",
+            });
+            if (!response.ok) throw new Error("Failed to toggle workflow");
+            return response.json();
+        },
+    },
     documents: {
         upload: async (
             organizationId: string,

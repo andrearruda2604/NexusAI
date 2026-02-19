@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar, Header } from "@/components/layout";
 import {
     ConditionNode,
@@ -28,6 +29,10 @@ import {
     Clock,
     Zap,
     AlertTriangle,
+    Workflow,
+    Play,
+    Pause,
+    ExternalLink,
 } from "lucide-react";
 import { api } from "@/services/api";
 
@@ -89,18 +94,33 @@ const conditionIcons: Record<string, React.ReactNode> = {
     sentiment: <Zap className="w-4 h-4" />,
 };
 
+interface WorkflowItem {
+    id: string;
+    name: string;
+    description?: string;
+    nodes: any[];
+    edges: any[];
+    is_active: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export default function MotorDeRegras() {
+    const router = useRouter();
     const [rules, setRules] = useState<Rule[]>([]);
+    const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<"list" | "flow">("list");
+    const [viewMode, setViewMode] = useState<"list" | "flow" | "workflows">("list");
     const [searchQuery, setSearchQuery] = useState("");
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRule, setEditingRule] = useState<Rule | null>(null);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteWfId, setDeleteWfId] = useState<string | null>(null);
 
     useEffect(() => {
         loadRules();
+        loadWorkflows();
     }, []);
 
     const loadRules = async () => {
@@ -111,6 +131,53 @@ export default function MotorDeRegras() {
             console.error("Error loading rules:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const loadWorkflows = async () => {
+        try {
+            const data = await api.workflows.list(DEMO_ORG_ID);
+            setWorkflows(data || []);
+        } catch (error) {
+            console.error("Error loading workflows:", error);
+        }
+    };
+
+    const handleCreateWorkflow = async () => {
+        try {
+            const wf = await api.workflows.create({
+                organization_id: DEMO_ORG_ID,
+                name: "Novo Workflow",
+                description: "",
+                nodes: [],
+                edges: [],
+            });
+            router.push(`/regras/workflow/${wf.id}`);
+        } catch (error) {
+            console.error("Error creating workflow:", error);
+        }
+    };
+
+    const handleToggleWorkflow = async (id: string) => {
+        try {
+            await api.workflows.toggle(id);
+            await loadWorkflows();
+        } catch (error) {
+            console.error("Error toggling workflow:", error);
+        }
+    };
+
+    const handleDeleteWorkflow = async () => {
+        if (!deleteWfId) return;
+        setIsDeleting(true);
+        try {
+            await api.workflows.delete(deleteWfId);
+            setDeleteWfId(null);
+            await loadWorkflows();
+        } catch (error) {
+            console.error("Error deleting workflow:", error);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -294,7 +361,7 @@ export default function MotorDeRegras() {
                                         }`}
                                 >
                                     <List className="w-4 h-4" />
-                                    Lista
+                                    Regras
                                 </button>
                                 <button
                                     onClick={() => setViewMode("flow")}
@@ -304,18 +371,36 @@ export default function MotorDeRegras() {
                                     <GitBranch className="w-4 h-4" />
                                     Fluxo
                                 </button>
+                                <button
+                                    onClick={() => setViewMode("workflows")}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${viewMode === "workflows" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                        }`}
+                                >
+                                    <Workflow className="w-4 h-4" />
+                                    Workflows
+                                </button>
                             </div>
 
-                            <button
-                                onClick={() => {
-                                    setEditingRule(null);
-                                    setModalOpen(true);
-                                }}
-                                className="btn btn-primary"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Nova Regra
-                            </button>
+                            {viewMode === "workflows" ? (
+                                <button
+                                    onClick={handleCreateWorkflow}
+                                    className="btn btn-primary"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Novo Workflow
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        setEditingRule(null);
+                                        setModalOpen(true);
+                                    }}
+                                    className="btn btn-primary"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Nova Regra
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -335,6 +420,81 @@ export default function MotorDeRegras() {
                     {isLoading ? (
                         <div className="flex justify-center items-center h-60">
                             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                        </div>
+                    ) : viewMode === "workflows" ? (
+                        /* ===== WORKFLOWS VIEW ===== */
+                        <div>
+                            {workflows.length === 0 ? (
+                                <div className="card">
+                                    <div className="card-body flex flex-col items-center justify-center py-16">
+                                        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                                            <Workflow className="w-8 h-8 text-purple-500" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-slate-700 mb-1">Nenhum workflow criado</h3>
+                                        <p className="text-sm text-slate-500 mb-4">Crie workflows visuais para automações complexas estilo n8n.</p>
+                                        <button onClick={handleCreateWorkflow} className="btn btn-primary">
+                                            <Plus className="w-4 h-4" />
+                                            Criar primeiro workflow
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {workflows.map((wf) => (
+                                        <div key={wf.id} className={`card transition-all hover:shadow-md cursor-pointer ${!wf.is_active ? "opacity-60" : ""}`}>
+                                            <div className="p-5">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1 min-w-0" onClick={() => router.push(`/regras/workflow/${wf.id}`)}>
+                                                        <h3 className="font-semibold text-slate-900 truncate mb-1">{wf.name}</h3>
+                                                        {wf.description && (
+                                                            <p className="text-xs text-slate-500 line-clamp-2">{wf.description}</p>
+                                                        )}
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${wf.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                                                        {wf.is_active ? "Ativo" : "Inativo"}
+                                                    </span>
+                                                </div>
+
+                                                {/* Stats */}
+                                                <div className="flex items-center gap-3 mb-4 text-xs text-slate-400">
+                                                    <span className="flex items-center gap-1">
+                                                        <Workflow className="w-3.5 h-3.5" />
+                                                        {wf.nodes?.length || 0} nós
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <GitBranch className="w-3.5 h-3.5" />
+                                                        {wf.edges?.length || 0} conexões
+                                                    </span>
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-1 border-t border-slate-100 pt-3">
+                                                    <button
+                                                        onClick={() => router.push(`/regras/workflow/${wf.id}`)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    >
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                        Editar
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleToggleWorkflow(wf.id)}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${wf.is_active ? "text-amber-600 hover:bg-amber-50" : "text-emerald-600 hover:bg-emerald-50"}`}
+                                                    >
+                                                        {wf.is_active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                                                        {wf.is_active ? "Desativar" : "Ativar"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDeleteWfId(wf.id)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : filteredRules.length === 0 ? (
                         <div className="card">
@@ -533,6 +693,38 @@ export default function MotorDeRegras() {
                                 </button>
                                 <button
                                     onClick={handleDelete}
+                                    disabled={isDeleting}
+                                    className="btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
+                                >
+                                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                    {isDeleting ? "Excluindo..." : "Excluir"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Workflow Confirmation */}
+                {deleteWfId && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-slate-900">Excluir workflow</h3>
+                                    <p className="text-sm text-slate-500">
+                                        Tem certeza que deseja excluir este workflow? Esta ação não pode ser desfeita.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => setDeleteWfId(null)} className="btn btn-secondary">
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleDeleteWorkflow}
                                     disabled={isDeleting}
                                     className="btn bg-red-600 text-white hover:bg-red-700 flex items-center gap-2"
                                 >

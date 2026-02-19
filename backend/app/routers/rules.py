@@ -176,3 +176,82 @@ async def remove_from_blocklist(blocklist_id: str, phone_number: str):
         supabase.table("blocklists").update({"phone_numbers": numbers}).eq("id", blocklist_id).execute()
     
     return {"message": "Número removido da blocklist", "phone_numbers": numbers}
+
+
+# === Workflows ===
+
+class WorkflowCreate(BaseModel):
+    organization_id: str
+    name: str
+    description: Optional[str] = None
+    nodes: list = []
+    edges: list = []
+    is_active: bool = False
+
+
+class WorkflowUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    nodes: Optional[list] = None
+    edges: Optional[list] = None
+    is_active: Optional[bool] = None
+
+
+@router.get("/workflows/")
+async def list_workflows(organization_id: str):
+    """Listar workflows de uma organização"""
+    supabase = get_supabase()
+    result = supabase.table("workflows").select("*").eq("organization_id", organization_id).order("created_at", desc=True).execute()
+    return result.data
+
+
+@router.post("/workflows/")
+async def create_workflow(data: WorkflowCreate):
+    """Criar novo workflow"""
+    supabase = get_supabase()
+    result = supabase.table("workflows").insert(data.model_dump()).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Erro ao criar workflow")
+    return result.data[0]
+
+
+@router.get("/workflows/{workflow_id}")
+async def get_workflow(workflow_id: str):
+    """Buscar workflow por ID"""
+    supabase = get_supabase()
+    result = supabase.table("workflows").select("*").eq("id", workflow_id).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Workflow não encontrado")
+    return result.data
+
+
+@router.patch("/workflows/{workflow_id}")
+async def update_workflow(workflow_id: str, data: WorkflowUpdate):
+    """Atualizar workflow (nome, nodes, edges)"""
+    supabase = get_supabase()
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data["updated_at"] = "now()"
+    result = supabase.table("workflows").update(update_data).eq("id", workflow_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Workflow não encontrado")
+    return result.data[0]
+
+
+@router.delete("/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str):
+    """Excluir workflow"""
+    supabase = get_supabase()
+    supabase.table("workflows").delete().eq("id", workflow_id).execute()
+    return {"message": "Workflow excluído com sucesso"}
+
+
+@router.post("/workflows/{workflow_id}/toggle")
+async def toggle_workflow(workflow_id: str):
+    """Ativar/Desativar workflow"""
+    supabase = get_supabase()
+    current = supabase.table("workflows").select("is_active").eq("id", workflow_id).single().execute()
+    if not current.data:
+        raise HTTPException(status_code=404, detail="Workflow não encontrado")
+    new_state = not current.data["is_active"]
+    result = supabase.table("workflows").update({"is_active": new_state}).eq("id", workflow_id).execute()
+    return {"is_active": new_state, "workflow": result.data[0]}
