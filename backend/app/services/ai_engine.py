@@ -53,7 +53,8 @@ class AIEngine:
             response = self.model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
-            return f"Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente ou aguarde que um atendente humano irá ajudá-lo."
+            print(f"GEMINI ERROR: {str(e)}")
+            return f"Desculpe, ocorreu um erro ao processar sua mensagem. ERRO TÉCNICO: {str(e)}"
     
     async def _search_knowledge(self, organization_id: str, query: str, limit: int = 3) -> str:
         """Buscar documentos relevantes usando embeddings"""
