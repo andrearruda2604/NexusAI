@@ -6,6 +6,8 @@ from app.database import get_supabase
 router = APIRouter()
 
 
+# ─── Models ───
+
 class RuleCreate(BaseModel):
     organization_id: str
     name: str
@@ -29,25 +31,46 @@ class RuleUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class BlocklistCreate(BaseModel):
+    organization_id: str
+    name: str
+    description: Optional[str] = None
+    phone_numbers: List[str] = []
+
+
+class WorkflowCreate(BaseModel):
+    organization_id: str
+    name: str
+    description: Optional[str] = None
+    nodes: list = []
+    edges: list = []
+    is_active: bool = False
+
+
+class WorkflowUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    nodes: Optional[list] = None
+    edges: Optional[list] = None
+    is_active: Optional[bool] = None
+
+
+# ═══════════════════════════════════════════════════════
+# IMPORTANTE: Rotas com caminhos estáticos (/blocklists/,
+# /workflows/) DEVEM ser definidas ANTES das rotas com
+# path parameter (/{rule_id}), senão o FastAPI interpreta
+# "blocklists" ou "workflows" como um rule_id.
+# ═══════════════════════════════════════════════════════
+
+
+# ─── Rules (rotas sem path parameter) ───
+
 @router.get("/")
 async def list_rules(organization_id: str):
     """Listar todas as regras de uma organização"""
     supabase = get_supabase()
     
     result = supabase.table("business_rules").select("*").eq("organization_id", organization_id).order("priority", desc=True).execute()
-    
-    return result.data
-
-
-@router.get("/{rule_id}")
-async def get_rule(rule_id: str):
-    """Buscar regra por ID"""
-    supabase = get_supabase()
-    
-    result = supabase.table("business_rules").select("*").eq("id", rule_id).single().execute()
-    
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Regra não encontrada")
     
     return result.data
 
@@ -65,57 +88,7 @@ async def create_rule(data: RuleCreate):
     return result.data[0]
 
 
-@router.patch("/{rule_id}")
-async def update_rule(rule_id: str, data: RuleUpdate):
-    """Atualizar regra"""
-    supabase = get_supabase()
-    
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
-    
-    result = supabase.table("business_rules").update(update_data).eq("id", rule_id).execute()
-    
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Regra não encontrada")
-    
-    return result.data[0]
-
-
-@router.delete("/{rule_id}")
-async def delete_rule(rule_id: str):
-    """Excluir regra"""
-    supabase = get_supabase()
-    
-    result = supabase.table("business_rules").delete().eq("id", rule_id).execute()
-    
-    return {"message": "Regra excluída com sucesso"}
-
-
-@router.post("/{rule_id}/toggle")
-async def toggle_rule(rule_id: str):
-    """Ativar/Desativar regra"""
-    supabase = get_supabase()
-    
-    # Buscar estado atual
-    current = supabase.table("business_rules").select("is_active").eq("id", rule_id).single().execute()
-    
-    if not current.data:
-        raise HTTPException(status_code=404, detail="Regra não encontrada")
-    
-    # Inverter estado
-    new_state = not current.data["is_active"]
-    result = supabase.table("business_rules").update({"is_active": new_state}).eq("id", rule_id).execute()
-    
-    return {"is_active": new_state, "rule": result.data[0]}
-
-
-# === BlockLists ===
-
-class BlocklistCreate(BaseModel):
-    organization_id: str
-    name: str
-    description: Optional[str] = None
-    phone_numbers: List[str] = []
-
+# ─── BlockLists ───
 
 @router.get("/blocklists/")
 async def list_blocklists(organization_id: str):
@@ -178,24 +151,7 @@ async def remove_from_blocklist(blocklist_id: str, phone_number: str):
     return {"message": "Número removido da blocklist", "phone_numbers": numbers}
 
 
-# === Workflows ===
-
-class WorkflowCreate(BaseModel):
-    organization_id: str
-    name: str
-    description: Optional[str] = None
-    nodes: list = []
-    edges: list = []
-    is_active: bool = False
-
-
-class WorkflowUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    nodes: Optional[list] = None
-    edges: Optional[list] = None
-    is_active: Optional[bool] = None
-
+# ─── Workflows ───
 
 @router.get("/workflows/")
 async def list_workflows(organization_id: str):
@@ -255,3 +211,62 @@ async def toggle_workflow(workflow_id: str):
     new_state = not current.data["is_active"]
     result = supabase.table("workflows").update({"is_active": new_state}).eq("id", workflow_id).execute()
     return {"is_active": new_state, "workflow": result.data[0]}
+
+
+# ─── Rules (rotas com path parameter /{rule_id}) ───
+# DEVE ficar por último para não capturar /blocklists/ e /workflows/
+
+@router.get("/{rule_id}")
+async def get_rule(rule_id: str):
+    """Buscar regra por ID"""
+    supabase = get_supabase()
+    
+    result = supabase.table("business_rules").select("*").eq("id", rule_id).single().execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Regra não encontrada")
+    
+    return result.data
+
+
+@router.patch("/{rule_id}")
+async def update_rule(rule_id: str, data: RuleUpdate):
+    """Atualizar regra"""
+    supabase = get_supabase()
+    
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    
+    result = supabase.table("business_rules").update(update_data).eq("id", rule_id).execute()
+    
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Regra não encontrada")
+    
+    return result.data[0]
+
+
+@router.delete("/{rule_id}")
+async def delete_rule(rule_id: str):
+    """Excluir regra"""
+    supabase = get_supabase()
+    
+    result = supabase.table("business_rules").delete().eq("id", rule_id).execute()
+    
+    return {"message": "Regra excluída com sucesso"}
+
+
+@router.post("/{rule_id}/toggle")
+async def toggle_rule(rule_id: str):
+    """Ativar/Desativar regra"""
+    supabase = get_supabase()
+    
+    # Buscar estado atual
+    current = supabase.table("business_rules").select("is_active").eq("id", rule_id).single().execute()
+    
+    if not current.data:
+        raise HTTPException(status_code=404, detail="Regra não encontrada")
+    
+    # Inverter estado
+    new_state = not current.data["is_active"]
+    result = supabase.table("business_rules").update({"is_active": new_state}).eq("id", rule_id).execute()
+    
+    return {"is_active": new_state, "rule": result.data[0]}
