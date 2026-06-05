@@ -9,7 +9,7 @@ genai.configure(api_key=settings.gemini_api_key)
 
 class AIEngine:
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
     
     async def generate_response(
         self,
