@@ -9,7 +9,7 @@ genai.configure(api_key=settings.gemini_api_key)
 
 class AIEngine:
     def __init__(self):
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
     
     async def generate_response(
         self,
@@ -60,9 +60,9 @@ class AIEngine:
         """Buscar documentos relevantes usando embeddings"""
         try:
             # Gerar embedding da query
-            embedding_model = genai.GenerativeModel('models/embedding-001')
+            embedding_model = genai.GenerativeModel('models/text-embedding-004')
             result = genai.embed_content(
-                model="models/embedding-001",
+                model="models/text-embedding-004",
                 content=query,
                 task_type="retrieval_query"
             )
