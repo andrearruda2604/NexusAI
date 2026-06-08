@@ -45,6 +45,7 @@ export interface Conversation {
     status: 'active' | 'closed' | 'transferred';
     sentiment: 'positive' | 'neutral' | 'negative';
     handled_by: 'ai' | 'human';
+    tags?: string[];
     created_at: string;
     updated_at: string;
 }
